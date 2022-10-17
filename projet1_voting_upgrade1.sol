@@ -29,9 +29,11 @@ contract Voting is Ownable {
         uint256 voteCount;
     }
 
-    mapping(address => Voter) voterMapping;
+    mapping(address => Voter) voterMapping; // mapping pour stocker les address des voters
 
-    Proposal[] proposals;
+    Proposal[] proposals; // array pour stocker les propositions faites
+
+    address[] votersAddress; // tableau pour stocker une liste finie des address des votant pour permettre la réinitialisation en cas vote égaux
 
     event VoterRegistered(address voterAddress);
     event WorkflowStatusChange(
@@ -53,8 +55,12 @@ contract Voting is Ownable {
     // FUNCTIONS
 
     // FONCTIONS DE MODIFICATION DU STATUS DU WORKFLOW -----
-    /** fonction permettant de passer au status de workflow suivant (le workflow étant équentiel */
-    function nextStep() public onlyOwner returns (string memory processStatus) {
+    /** fonction permettant de passer au status de workflow suivant (le workflow étant équentiel) */
+    function _nextStep()
+        public
+        onlyOwner
+        returns (string memory processStatus)
+    {
         if (currentWorkflowStatus == WorkflowStatus.RegisteringVoters) {
             currentWorkflowStatus = WorkflowStatus.ProposalsRegistrationStarted;
             emit WorkflowStatusChange(
@@ -107,6 +113,15 @@ contract Voting is Ownable {
 
     /* fonction de relance d'un vote en cas d'égalité */
     function _relaunchVote() public onlyOwner {
+        // réinitialisation du statut hasVoted des votants
+        for (uint256 i = 0; i < votersAddress.length; i++) {
+            voterMapping[votersAddress[i]].hasVoted = false;
+        }
+        // mise à zero du tableau votersAddress en vue du nouveau tour de vote
+        for (uint256 i = 0; i < votersAddress.length; i++) {
+            votersAddress.pop();
+        }
+        // relance d'un tour de vote
         currentWorkflowStatus = WorkflowStatus.VotingSessionStarted;
         emit WorkflowStatusChange(
             WorkflowStatus.VotingSessionEnded,
@@ -167,6 +182,7 @@ contract Voting is Ownable {
         );
         proposals[_proposalId].voteCount++;
         voterMapping[msg.sender].hasVoted = true;
+        votersAddress.push(msg.sender);
         emit Voted(msg.sender, _proposalId);
     }
 
